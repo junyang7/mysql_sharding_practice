@@ -3,42 +3,62 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"strconv"
+	"tool/dao"
 )
 
-// 第一次分表
-// 数据库数量不变，将一张达标拆分成4张小表
-// 规则：
-// 		中间变量 = KEY % (库数量 * 每个库的表数量)
-//		库 = 中间变量 / 每个库的表数量
-//      表 = 中间变量 % 每个库的表数量
+var (
+	dbBaseName = "db"
+	tbBaseName = "tb"
+	dbCount    = 1
+	tbCount    = 32
+	dbList     = map[string]*sql.DB{
+		"db_0": dao.Connect("mysql", "root:@tcp(127.0.0.1:3306)/"+dbBaseName),
+	}
+)
 
 func main() {
-	dbName := "db_0"
 
-	var (
-		db  *sql.DB
-		err error
-	)
-	fmt.Println("链接数据库：", dbName)
-	db, err = sql.Open("mysql", "root:@tcp(127.0.0.1:3306)/"+dbName)
-	if err != nil {
-		panic(err)
+	page := 1
+	size := 10000
+
+	for {
+
+		fmt.Println(page)
+
+		statement := fmt.Sprintf("SELECT * FROM %s ORDER BY id DESC LIMIT %d, %d", tbBaseName, (page-1)*size, size)
+		parameterList := []interface{}{}
+		rowList := dao.QueryRowListWithParameterList(dbList["db_0"], statement, parameterList)
+
+		if len(rowList) == 0 {
+			break
+		}
+
+		page++
+
+		for _, tbRow := range rowList {
+			kid, err := strconv.ParseInt(tbRow["kid"], 10, 64)
+			if err != nil {
+				panic(err)
+			}
+			m := int(kid % (int64(dbCount) * int64(tbCount)))
+			//多库时候用到
+			//dbIndex := m / tbCount
+			tbIndex := m % tbCount
+			tbName := tbBaseName + "_" + strconv.Itoa(tbIndex)
+
+			// 从多表中取数据
+			tbNRow := dao.QueryRowWithParameterList(dbList["db_0"], "SELECT * FROM "+tbName+" WHERE kid = ?", []interface{}{tbRow["kid"]})
+			if len(tbNRow) == 0 {
+				dao.ExecuteWithParameter(dbList["db_0"], "INSERT INTO "+tbName+" (add_time, set_time, kid, name, count) VALUES (?, ?, ?, ?, ?)", []interface{}{tbRow["add_time"], tbRow["set_time"], tbRow["kid"], tbRow["name"], tbRow["count"]})
+				continue
+			}
+
+			if tbRow["set_time"] > tbNRow["set_time"] {
+				dao.ExecuteWithParameter(dbList["db_0"], "UPDATE "+tbName+" SET set_time = ?, count = ? WHERE kid = ?", []interface{}{tbRow["set_time"], tbRow["count"], tbRow["kid"]})
+			}
+
+		}
 	}
-	defer db.Close()
-
-	fmt.Println("第一次分表")
-	//	for i := 0; i < 4; i++ {
-	//		tbName := "tb_" + strconv.Itoa(i)
-	//		fmt.Println("创建数据表：", tbName)
-	//		if _, err := db.Exec(fmt.Sprintf(`
-	//CREATE TABLE %s (
-	// id bigint(20) NOT NULL AUTO_INCREMENT,
-	// name varchar(255) NOT NULL DEFAULT '',
-	// PRIMARY KEY (id)
-	//) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-	//`, tbName)); err != nil {
-	//			panic(err)
-	//		}
-	//	}
 
 }
