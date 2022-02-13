@@ -3,12 +3,14 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"github.com/go-redis/redis"
 	"math/rand"
 	"strconv"
 	"sync"
 	"time"
 	"tool/dao"
 	"tool/datetime"
+	"tool/rd"
 )
 
 var (
@@ -19,9 +21,13 @@ var (
 	dbCount    = 1
 	tbCount    = 32
 	dbList     = map[string]*sql.DB{
-		"db_0": dao.Connect("mysql", "root:@tcp(127.0.0.1:3306)/"+dbBaseName),                 // db
-		"db_1": dao.Connect("mysql", "root:@tcp(127.0.0.1:3306)/"+dbBaseName+strconv.Itoa(1)), // db_1
+		"db_0": dao.Connect("mysql", "root:aA$12345@tcp(127.0.0.1:3306)/"+dbBaseName),                 // db
+		"db_1": dao.Connect("mysql", "root:aA$12345@tcp(127.0.0.1:3306)/"+dbBaseName+strconv.Itoa(1)), // db_1
 	}
+	rdList = map[string]*redis.Client{
+		"rd_0": rd.Connect("127.0.0.1:6379", "", 0),
+	}
+	sleep = 5000000
 )
 
 type conf struct {
@@ -50,94 +56,91 @@ func do(c *conf) {
 	go del(c)
 	wg.Wait()
 }
+
+// add 模拟新增
 func add(c *conf) {
 	for {
-
-		time.Sleep(time.Microsecond * time.Duration(rand.Intn(1000000)))
-
-		kid := time.Now().UnixMicro()
+		time.Sleep(time.Microsecond * time.Duration(rand.Intn(sleep)))
+		kid := genKid()
 		tm := datetime.Get()
-		parameterList := []interface{}{tm, tm, kid, kid}
+		parameter := []interface{}{tm, tm, kid, kid}
 		statement := "INSERT INTO %s (add_time, set_time, kid, name) VALUES (?, ?, ?, ?)"
-
-		if c.w == 1 {
-			// 写：多表
-			m(dbList["db_0"], statement, tbBaseName, parameterList, kid, dbCount, tbCount)
-		} else if c.w == 2 {
-			// 写：单表+多表
-			s(dbList["db_0"], statement, tbBaseName, parameterList)
-			m(dbList["db_0"], statement, tbBaseName, parameterList, kid, dbCount, tbCount)
-		} else {
-			// 默认：写：单表
-			s(dbList["db_0"], statement, tbBaseName, parameterList)
-		}
-		fmt.Println(datetime.Get(), "add", parameterList)
-
+		write(c, statement, parameter, kid)
+		fmt.Println(datetime.Get(), "add", parameter)
 	}
 	wg.Done()
 }
+
+// set 模拟修改
 func set(c *conf) {
 	for {
-
-		time.Sleep(time.Microsecond * time.Duration(rand.Intn(1000000)))
-
+		time.Sleep(time.Microsecond * time.Duration(rand.Intn(sleep)))
 		count := time.Now().Unix()
 		tm := datetime.Get()
-		kid := rand.Int63n(time.Now().UnixMicro())
-		parameterList := []interface{}{count, tm, kid}
-		statement := "UPDATE %s SET count = ?, set_time = ? WHERE id = ?"
-
-		if c.w == 1 {
-			// 写：多表
-			m(dbList["db_0"], statement, tbBaseName, parameterList, kid, dbCount, tbCount)
-		} else if c.w == 2 {
-			// 写：单表+多表
-			s(dbList["db_0"], statement, tbBaseName, parameterList)
-			m(dbList["db_0"], statement, tbBaseName, parameterList, kid, dbCount, tbCount)
-		} else {
-			// 默认：写：单表
-			s(dbList["db_0"], statement, tbBaseName, parameterList)
-		}
-
-		fmt.Println(datetime.Get(), "set", parameterList)
-
+		kid := getRandomKid()
+		parameter := []interface{}{count, tm, kid}
+		statement := "UPDATE %s SET count = ?, set_time = ? WHERE kid = ?"
+		write(c, statement, parameter, kid)
+		fmt.Println(datetime.Get(), "set", parameter)
 	}
 	wg.Done()
 }
 func del(c *conf) {
 	for {
-
-		time.Sleep(time.Microsecond * time.Duration(rand.Intn(1000000)))
-
-		kid := rand.Int63n(time.Now().UnixMicro())
-		parameterList := []interface{}{kid}
-		statement := "DELETE FROM %s WHERE id = ?"
-
-		if c.w == 1 {
-			// 写：多表
-			m(dbList["db_0"], statement, tbBaseName, parameterList, kid, dbCount, tbCount)
-		} else if c.w == 2 {
-			// 写：单表+多表
-			s(dbList["db_0"], statement, tbBaseName, parameterList)
-			m(dbList["db_0"], statement, tbBaseName, parameterList, kid, dbCount, tbCount)
-		} else {
-			// 默认：写：单表
-			s(dbList["db_0"], statement, tbBaseName, parameterList)
-		}
-
-		fmt.Println(datetime.Get(), "del", parameterList)
-
+		time.Sleep(time.Microsecond * time.Duration(rand.Intn(sleep)))
+		kid := getRandomKid()
+		parameter := []interface{}{kid}
+		statement := "DELETE FROM %s WHERE kid = ?"
+		write(c, statement, parameter, kid)
+		fmt.Println(datetime.Get(), "del", parameter)
 	}
 	wg.Done()
 }
 
 func s(db *sql.DB, sql string, tbBaseName string, parameterList []interface{}) {
-	dao.ExecuteWithParameter(db, fmt.Sprintf(sql, tbBaseName), parameterList)
+	statement := fmt.Sprintf(sql, tbBaseName)
+	dao.ExecuteWithParameter(db, statement, parameterList)
+	fmt.Println(tbBaseName, statement, parameterList)
 }
-func m(db *sql.DB, sql string, tbBaseName string, parameterList []interface{}, kid int64, dbCount int, tbCount int) {
-	m := int(kid % (int64(dbCount) * int64(tbCount)))
+func m(db *sql.DB, sql string, tbBaseName string, parameterList []interface{}, kid int, dbCount int, tbCount int) {
+	m := kid % (dbCount * tbCount)
 	//多库时候用到
 	//dbIndex := m / tbCount
 	tbIndex := m % tbCount
-	dao.ExecuteWithParameter(db, fmt.Sprintf(sql, tbBaseName+"_"+strconv.Itoa(tbIndex)), parameterList)
+	tbName := tbBaseName + "_" + strconv.Itoa(tbIndex)
+	statement := fmt.Sprintf(sql, tbName)
+	dao.ExecuteWithParameter(db, statement, parameterList)
+	fmt.Println(tbName, statement, parameterList)
+}
+
+// genKid 生成全局唯一KID
+func genKid() int {
+	kid, _ := rdList["rd_0"].Incr("kid").Result()
+	return int(kid)
+}
+
+// getKid 获取当前最大KID的值
+func getKid() int {
+	kid, _ := rdList["rd_0"].Get("kid").Int()
+	return kid
+}
+
+// getRandomKid 随机获取0-最大KID之间的一个KID，用来模拟修改和删除
+func getRandomKid() int {
+	return rand.Intn(getKid())
+}
+
+// write 处理数据库写操作
+func write(c *conf, statement string, parameterList []interface{}, kid int) {
+	if c.w == 1 {
+		// 写：多表
+		m(dbList["db_0"], statement, tbBaseName, parameterList, kid, dbCount, tbCount)
+	} else if c.w == 2 {
+		// 写：单表+多表
+		s(dbList["db_0"], statement, tbBaseName, parameterList)
+		m(dbList["db_0"], statement, tbBaseName, parameterList, kid, dbCount, tbCount)
+	} else {
+		// 默认：写：单表
+		s(dbList["db_0"], statement, tbBaseName, parameterList)
+	}
 }

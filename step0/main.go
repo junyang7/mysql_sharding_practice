@@ -3,11 +3,13 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"github.com/go-redis/redis"
 	"os"
 	"strconv"
 	"strings"
 	"tool/dao"
 	"tool/datetime"
+	"tool/rd"
 )
 
 const (
@@ -15,12 +17,17 @@ const (
 	tbName = "tb"
 )
 
-var db *sql.DB
+var (
+	db     *sql.DB
+	rdList = map[string]*redis.Client{
+		"rd_0": rd.Connect("127.0.0.1:6379", "", 0),
+	}
+)
 
 func main() {
 
 	fmt.Println("链接数据库：", "mysql")
-	db = dao.Connect("mysql", "root:@tcp(127.0.0.1:3306)/mysql")
+	db = dao.Connect("mysql", "root:aA$12345@tcp(127.0.0.1:3306)/mysql")
 
 	fmt.Println("删除数据库：", dbName)
 	dao.Execute(db, "DROP DATABASE IF EXISTS "+dbName)
@@ -32,12 +39,11 @@ func main() {
 	_ = db.Close()
 
 	fmt.Println("链接数据库：", dbName)
-	db = dao.Connect("mysql", "root:@tcp(127.0.0.1:3306)/"+dbName)
+	db = dao.Connect("mysql", "root:aA$12345@tcp(127.0.0.1:3306)/"+dbName)
 	defer db.Close()
 
 	fmt.Println("创建数据表：", tbName)
-	dao.Execute(db, "CREATE TABLE `"+tbName+"` (\n  `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '自增主键',\n  `add_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '创建时间',\n  `set_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '修改时间',\n  `kid` bigint(20) unsigned NOT NULL DEFAULT '0' COMMENT '路由主键',\n  `name` varchar(255) NOT NULL DEFAULT '' COMMENT '文本信息',\n  `count` int(11) unsigned NOT NULL DEFAULT '0' COMMENT '模拟请求',\n  PRIMARY KEY (`id`)\n) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8;")
-
+	dao.Execute(db, "CREATE TABLE `"+tbName+"` (\n  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '自增主键',\n  `add_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '创建时间',\n  `set_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '修改时间',\n  `kid` bigint unsigned NOT NULL DEFAULT '0' COMMENT '路由主键',\n  `name` varchar(255) NOT NULL DEFAULT '' COMMENT '文本信息',\n  `count` int unsigned NOT NULL DEFAULT '0' COMMENT '模拟请求',\n  PRIMARY KEY (`id`),\n  UNIQUE KEY `uk_kid` (`kid`) USING BTREE COMMENT '全局唯一ID'\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;")
 	wd, _ := os.Getwd()
 	fName := wd + "/data.txt"
 	os.Remove(fName)
@@ -61,4 +67,11 @@ func main() {
 	fmt.Println("写入数据集...")
 	dao.Execute(db, "LOAD DATA INFILE '"+fName+"'\nINTO TABLE tb\nFIELDS\nTERMINATED BY ','\nIGNORE 1 LINES")
 
+	fmt.Println("重置kid：", 5000000)
+	resetKid(5000000)
+
+}
+
+func resetKid(initValue int) {
+	rdList["rd_0"].Set("kid", initValue, 0)
 }
