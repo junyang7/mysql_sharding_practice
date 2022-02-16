@@ -12,6 +12,11 @@ func Connect(driverName string, dataSourceName string) *sql.DB {
 	}
 	return db
 }
+func Close(db *sql.DB) {
+	if err := db.Close(); err != nil {
+		panic(err)
+	}
+}
 func Execute(db *sql.DB, statement string) {
 	if _, err := db.Exec(statement); err != nil {
 		panic(err)
