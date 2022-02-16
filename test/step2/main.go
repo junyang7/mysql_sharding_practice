@@ -46,11 +46,11 @@ func main() {
 		dtE = datetime.Get()
 		if transferByDiff(i, dtS, dtE) {
 			if checkOk() {
-				dao.Close(db)
 				if i > retryTimesBeforeReadOnly {
 					dao.Execute(db, "SET GLOBAL read_only = 0;")
 				}
 				log.Info("完成")
+				dao.Close(db)
 				os.Exit(0)
 			}
 		}
