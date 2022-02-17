@@ -40,3 +40,11 @@ go build main.go && nohup ./main stop >> log.txt 2>&1 &
 # 日志
 tail -f log.txt
 ```
+
+## 模拟建议
+
+```text
+编译main.go文件 =》 main
+找个地方，建立多个文件夹，每个文件夹内放置一份main和app.json
+启动服务，这样可以实现模拟多个服务实例
+```
