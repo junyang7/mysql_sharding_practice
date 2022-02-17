@@ -87,7 +87,6 @@ func transferByDiff(i int, dtS string, dtE string) bool {
 
 	for _, rowTb := range rowList {
 
-		time.Sleep(time.Second)
 		rid, _ := strconv.Atoi(rowTb["rid"])
 		m := rid % (dbCount * tbCount)
 		dbIndex := m / tbCount
