@@ -2,9 +2,7 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"strconv"
@@ -13,34 +11,33 @@ import (
 	"time"
 	"tool/dao"
 	"tool/datetime"
-	"tool/log"
+	"tool/file"
+	"tool/in"
 	"tool/rid"
 )
 
 var (
-	wg                   sync.WaitGroup
-	db                   *sql.DB
-	pid                  int
-	pidFilename          = "pid.txt"
-	sleep                = 500000
-	redisHost            = "127.0.0.1" // Redis服务器地址
-	redisPort            = 6379        // Redis服务端口
-	redisPassword        = ""          // Redis密码
-	redisDbIndex         = 0
-	tbBaseName           = "tb"
-	tbCount              = 32
-	dbDriver             = "mysql"                       // 数据库驱动
-	dbHost               = "localhost"                   // 数据库地址
-	dbProtocol           = "tcp"                         // 协议
-	dbPort               = 3306                          // 数据库端口
-	dbBusinessUsername   = "business"                    // 业务账号（实际业务中操作数据库使用的普通账号）
-	dbBusinessPassword   = "business"                    // 业务密码
-	dbBusinessHost       = "%"                           // 业务主机
-	dbBusinessPrivileges = "INSERT,DELETE,UPDATE,SELECT" // 业务权限（增删改查）
-	dbBaseName           = "db"                          // 试验数据库
-	dbCount              = 1                             // 试验数据库数量
-	confFilename         = "app.json"                    // 项目配置文件路径
-	conf                 = &Conf{}                       // 项目配置文件解析结果（项目读写控制）
+	wg                 sync.WaitGroup
+	db                 *sql.DB
+	pid                int
+	pidFilename        = "pid.txt"
+	sleep              = 500000
+	redisHost          = "127.0.0.1" // Redis服务器地址
+	redisPort          = 6379        // Redis服务端口
+	redisPassword      = ""          // Redis密码
+	redisDbIndex       = 0
+	tbBaseName         = "tb"
+	tbCount            = 32
+	dbDriver           = "mysql"     // 数据库驱动
+	dbHost             = "localhost" // 数据库地址
+	dbProtocol         = "tcp"       // 协议
+	dbPort             = 3306        // 数据库端口
+	dbBusinessUsername = "business"  // 业务账号（实际业务中操作数据库使用的普通账号）
+	dbBusinessPassword = "business"  // 业务密码
+	dbBaseName         = "db"        // 试验数据库
+	dbCount            = 1           // 试验数据库数量
+	confFilename       = "app.json"  // 项目配置文件路径
+	conf               = &Conf{}     // 项目配置文件解析结果（项目读写控制）
 )
 
 type Conf struct {
@@ -51,94 +48,106 @@ type Conf struct {
 
 func init() {
 
+	pid = os.Getpid()
 	rid.Init(redisHost, redisPort, redisPassword, redisDbIndex)
 	db = dao.Connect(dbDriver, fmt.Sprintf("%s:%s@%s(%s:%d)/%s", dbBusinessUsername, dbBusinessPassword, dbProtocol, dbHost, dbPort, dbBaseName))
 
 }
 func main() {
 
-	// 预处理
-	prepare()
-	// 工作
-	do(conf)
+	parseCommand()
+	savePid()
+	loadConf()
+	work()
 
 }
-func prepare() {
+func log(message ...interface{}) {
+	fmt.Println(datetime.Get(), "[", pid, "]", message)
+}
+func parseCommand() {
 
-	if len(os.Args) == 1 {
-		fmt.Println(`
-Usage:
-	start | restart | stop
-	start	启动
-	restart	重启
-	stop	停止
-`)
+	log("正在解析命令行参数...")
+
+	if len(os.Args) == 1 || !in.StringList(os.Args[1], []string{"start", "restart", "stop"}) {
+		fmt.Println("Usage:\n\tstart | restart | stop\n\tstart\t启动\n\trestart\t重启\n\tstop\t停止")
 		os.Exit(0)
 	}
 
-	pid = os.Getpid()
 	cmd := os.Args[1]
-	log.Info("[", pid, "]", cmd)
+	log(cmd)
 
 	switch cmd {
 	case "stop":
-		log.Info("[", pid, "]", "停止...")
-		b, _ := ioutil.ReadFile("pid.txt")
-		pid, _ := strconv.Atoi(string(b))
-		_ = syscall.Kill(pid, syscall.SIGKILL)
+		log("正在停止...")
+		if err := syscall.Kill(file.ReadByInt(pidFilename), syscall.SIGKILL); err != nil {
+			panic(err)
+		}
 		os.Exit(0)
 	case "restart":
-		log.Info("[", pid, "]", "重启...")
-		b, _ := ioutil.ReadFile("pid.txt")
-		pid, _ := strconv.Atoi(string(b))
-		_ = syscall.Kill(pid, syscall.SIGKILL)
+		log("正在重启...")
+		if err := syscall.Kill(file.ReadByInt(pidFilename), syscall.SIGKILL); err != nil {
+			panic(err)
+		}
 	case "start":
-		log.Info("[", pid, "]", "启动...")
+		log("正在启动...")
 	default:
-		log.Info("[", pid, "]", "命令未定义，操作已忽略")
+		log("命令未定义，操作已忽略...")
 		os.Exit(0)
 	}
-	f, err := os.OpenFile("pid.txt", os.O_CREATE|os.O_RDWR, os.ModePerm)
-	if err != nil {
-		log.Info("[", pid, "]", "无法创建pid.txt文件")
-		os.Exit(0)
-	}
-	_, _ = f.WriteString(strconv.Itoa(pid))
-	_ = f.Close()
 
-	log.Info("[", pid, "]", "加载配置文件：", confFilename)
-	loadConf()
-	log.Info("[", pid, "]", *conf)
+}
+func savePid() {
+
+	log("正在保存pid...")
+	file.SaveByInt(pidFilename, pid, os.ModePerm)
+	log("成功")
 
 }
 func loadConf() {
-	n, err := ioutil.ReadFile(confFilename)
-	if err != nil {
-		panic(err)
-	}
-	_ = json.Unmarshal(n, conf)
+
+	log("正在加载配置...")
+	file.ReadByJson(confFilename, conf)
+	log("成功")
+	log(*conf)
+
 }
-func do(conf *Conf) {
+func work() {
+
 	wg.Add(3)
-	go add(conf)
-	go set(conf)
-	go del(conf)
+
+	go add()
+	go set()
+	go del()
+
 	wg.Wait()
+
 }
-func add(conf *Conf) {
+func add() {
 
 	for {
-		doAdd(conf)
+		doAdd()
 	}
 
-	wg.Done()
+}
+func set() {
+
+	for {
+		doSet()
+	}
 
 }
-func doAdd(conf *Conf) {
+func del() {
+
+	for {
+		doDel()
+	}
+
+}
+func doAdd() {
 
 	defer func() {
 		if err := recover(); err != nil {
-			log.Info("错误", err)
+			log("捕获业务错误", err)
 		}
 	}()
 
@@ -148,23 +157,14 @@ func doAdd(conf *Conf) {
 	statement := "INSERT INTO %s (create_time,rid,name) VALUES (?, ?, ?)"
 	parameter := []interface{}{tm, id, "name_" + strconv.Itoa(id)}
 
-	write("add", conf, statement, parameter, id)
+	write("add", statement, parameter, id)
 
 }
-func set(conf *Conf) {
-
-	for {
-		doSet(conf)
-	}
-
-	wg.Done()
-
-}
-func doSet(conf *Conf) {
+func doSet() {
 
 	defer func() {
 		if err := recover(); err != nil {
-			log.Info("[", pid, "]", "捕获错误", err)
+			log("捕获业务错误", err)
 		}
 	}()
 
@@ -175,23 +175,14 @@ func doSet(conf *Conf) {
 	statement := "UPDATE %s SET update_time = ?, count = ? WHERE rid = ?"
 	parameter := []interface{}{tm, count, id}
 
-	write("set", conf, statement, parameter, id)
+	write("set", statement, parameter, id)
 
 }
-func del(conf *Conf) {
-
-	for {
-		doDel(conf)
-	}
-
-	wg.Done()
-
-}
-func doDel(conf *Conf) {
+func doDel() {
 
 	defer func() {
 		if err := recover(); err != nil {
-			log.Info("[", pid, "]", "捕获错误", err)
+			log("捕获业务错误", err)
 		}
 	}()
 
@@ -201,15 +192,15 @@ func doDel(conf *Conf) {
 	statement := "UPDATE %s SET update_time = ?, delete_time = ?, status = ? WHERE rid = ?"
 	parameter := []interface{}{tm, tm, 0, id}
 
-	write("del", conf, statement, parameter, id)
+	write("del", statement, parameter, id)
 
 }
-func write(action string, conf *Conf, statement string, parameter []interface{}, id int) {
+func write(action string, statement string, parameter []interface{}, id int) {
 
 	if conf.IsReadOnly == 1 {
-		log.Info("[", pid, "]", "服务降级项目只读", action, "old", statement, parameter)
-		return
+		panic([]interface{}{"服务降级项目只读", action, "old", statement, parameter})
 	}
+
 	if conf.W == 1 {
 		// 1写新表
 		writeNew(action, statement, tbBaseName, parameter, id, dbCount, tbCount)
@@ -228,7 +219,7 @@ func writeOld(action string, sql string, tbBaseName string, parameter []interfac
 	statement := fmt.Sprintf(sql, tbBaseName)
 	dao.ExecuteWithParameter(db, statement, parameter)
 
-	log.Info("[", pid, "]", action, "old", statement, parameter)
+	log(action, "old", statement, parameter)
 
 }
 func writeNew(action string, sql string, tbBaseName string, parameter []interface{}, id int, dbCount int, tbCount int) {
@@ -240,6 +231,6 @@ func writeNew(action string, sql string, tbBaseName string, parameter []interfac
 	statement := fmt.Sprintf(sql, tbName)
 
 	dao.ExecuteWithParameter(db, statement, parameter)
-	log.Info("[", pid, "]", action, "new", statement, parameter, id, m, dbIndex, tbIndex)
+	log(action, "new", statement, parameter, id, m, dbIndex, tbIndex)
 
 }
