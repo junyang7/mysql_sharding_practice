@@ -13,17 +13,18 @@ import (
 
 var (
 	db                       *sql.DB
-	dbDriver                 = "mysql"     // 数据库驱动
-	dbProtocol               = "tcp"       // 协议
-	dbHost                   = "localhost" // 数据库地址
-	dbPort                   = 3306        // 数据库端口
-	dbTransferUsername       = "transfer"  // 迁移账号（实际业务中操作数据库使用的普通账号）
-	dbTransferPassword       = "transfer"  // 迁移密码
-	dbCount                  = 1           // 试验数据库数量
-	dbBaseName               = "db"        // 试验数据库
-	tbBaseName               = "tb"        // 试验数据表
-	tbCount                  = 32          // 数据表数据量
-	retryTimesBeforeReadOnly = 60          // 最大差异对比补齐次数（只读前）
+	dbDriver                 = "mysql"               // 数据库驱动
+	dbProtocol               = "tcp"                 // 协议
+	dbHost                   = "localhost"           // 数据库地址
+	dbPort                   = 3306                  // 数据库端口
+	dbTransferUsername       = "transfer"            // 迁移账号（实际业务中操作数据库使用的普通账号）
+	dbTransferPassword       = "transfer"            // 迁移密码
+	dbCount                  = 1                     // 试验数据库数量
+	dbBaseName               = "db"                  // 试验数据库
+	tbBaseName               = "tb"                  // 试验数据表
+	tbCount                  = 32                    // 数据表数据量
+	retryTimesBeforeReadOnly = 60                    // 最大差异对比补齐次数（只读前）
+	dbDefaultDatetime        = "1970-01-01 00:00:00" // 数据库默认时间
 )
 
 func init() {
@@ -31,12 +32,13 @@ func init() {
 }
 func main() {
 
-	dtS := "1970-01-01 00:00:00"
+	dtS := dbDefaultDatetime
 	dtE := datetime.Get()
 	transferByInit(dtS, dtE)
 
 	i := 0
 	for {
+		time.Sleep(time.Second)
 		i++
 		log.Info(i)
 		if i > retryTimesBeforeReadOnly {
@@ -64,6 +66,7 @@ func transferByInit(dtS string, dtE string) {
 	for i := 0; i < dbCount; i++ {
 		for j := 0; j < tbCount; j++ {
 
+			time.Sleep(time.Second)
 			tbName := tbBaseName + "_" + strconv.Itoa(j)
 			statement := fmt.Sprintf("INSERT IGNORE INTO %s (%s) SELECT %s FROM %s WHERE update_time >= ? AND update_time <= ? AND rid %% (%d * %d) %% %d = ?", tbName, field, field, tbBaseName, dbCount, tbCount, tbCount)
 			parameter := []interface{}{dtS, dtE, j}
@@ -84,6 +87,7 @@ func transferByDiff(i int, dtS string, dtE string) bool {
 
 	for _, rowTb := range rowList {
 
+		time.Sleep(time.Second)
 		rid, _ := strconv.Atoi(rowTb["rid"])
 		m := rid % (dbCount * tbCount)
 		dbIndex := m / tbCount

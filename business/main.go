@@ -21,7 +21,7 @@ var (
 	db                 *sql.DB        // 数据库连接池操作句柄
 	pid                int            // 当前进程PID
 	pidFilename        = "pid.txt"    // 当前进程PID保存文件
-	sleep              = 500000       //每个协程随机休眠最大微妙数
+	sleep              = 500000       // 每个协程随机休眠最大微妙数
 	redisHost          = "127.0.0.1"  // Redis服务器地址
 	redisPort          = 6379         // Redis服务端口
 	redisPassword      = ""           // Redis密码
