@@ -44,6 +44,9 @@ echo "
 [mysqld]
 secure_file_priv=
 " > ~/.my.cnf
+
+
+echo 'secure_file_priv=' >> /etc/my.cnf
 ```
 
 ```sql
@@ -70,5 +73,6 @@ CREATE TABLE `tb` (
 ----
 ```shell
 go build main.go && ./main
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /Users/guoguo/GolandProjects/mysql_sharding_practice/tmp/step0 main.go
 
 ```

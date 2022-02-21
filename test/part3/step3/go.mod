@@ -1,4 +1,4 @@
-module step1
+module step3
 
 go 1.17
 
@@ -9,4 +9,4 @@ require (
 
 require tool v0.0.0
 
-replace tool => ./../../tool
+replace tool => ./../../../tool

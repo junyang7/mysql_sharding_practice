@@ -17,27 +17,27 @@ import (
 )
 
 var (
-	wg                 sync.WaitGroup // 控制多个协程的退出
-	db                 *sql.DB        // 数据库连接池操作句柄
-	pid                int            // 当前进程PID
-	pidFilename        = "pid.txt"    // 当前进程PID保存文件
-	sleep              = 500000       // 每个协程随机休眠最大微妙数
-	redisHost          = "127.0.0.1"  // Redis服务器地址
-	redisPort          = 6379         // Redis服务端口
-	redisPassword      = ""           // Redis密码
-	redisDbIndex       = 0            // Redis数据库索引
-	tbBaseName         = "tb"         // 基表名称
-	tbCount            = 32           // 表数量
-	dbDriver           = "mysql"      // 数据库驱动
-	dbHost             = "localhost"  // 数据库地址
-	dbProtocol         = "tcp"        // 协议
-	dbPort             = 3306         // 数据库端口
-	dbBusinessUsername = "business"   // 业务账号（实际业务中操作数据库使用的普通账号）
-	dbBusinessPassword = "business"   // 业务密码
-	dbBaseName         = "db"         // 试验数据库
-	dbCount            = 1            // 试验数据库数量
-	confFilename       = "app.json"   // 项目配置文件路径
-	conf               = &Conf{}      // 项目配置文件解析结果（项目读写控制）
+	wg                 sync.WaitGroup   // 控制多个协程的退出
+	db                 *sql.DB          // 数据库连接池操作句柄
+	pid                int              // 当前进程PID
+	pidFilename        = "pid.txt"      // 当前进程PID保存文件
+	sleep              = 500000         // 每个协程随机休眠最大微妙数
+	redisHost          = "127.0.0.1"    // Redis服务器地址
+	redisPort          = 6379           // Redis服务端口
+	redisPassword      = ""             // Redis密码
+	redisDbIndex       = 0              // Redis数据库索引
+	tbBaseName         = "tb"           // 基表名称
+	tbCount            = 32             // 表数量
+	dbDriver           = "mysql"        // 数据库驱动
+	dbHost             = "172.16.10.30" // 数据库地址
+	dbProtocol         = "tcp"          // 协议
+	dbPort             = 3306           // 数据库端口
+	dbBusinessUsername = "business"     // 业务账号（实际业务中操作数据库使用的普通账号）
+	dbBusinessPassword = "aA!12345"     // 业务密码
+	dbBaseName         = "db"           // 试验数据库
+	dbCount            = 1              // 试验数据库数量
+	confFilename       = "app.json"     // 项目配置文件路径
+	conf               = &Conf{}        // 项目配置文件解析结果（项目读写控制）
 )
 
 type Conf struct {

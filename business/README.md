@@ -48,3 +48,8 @@ tail -f log.txt
 找个地方，建立多个文件夹，每个文件夹内放置一份main和app.json
 启动服务，这样可以实现模拟多个服务实例
 ```
+
+```shell
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /Users/guoguo/GolandProjects/mysql_sharding_practice/tmp/business main.go
+
+```

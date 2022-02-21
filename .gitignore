@@ -3,16 +3,20 @@ business/main
 business/log.txt
 business/pid.txt
 
-test/step0/data.txt
-test/step0/go.sum
-test/step0/main
+test/part1/step0/data.txt
+test/part1/step0/go.sum
+test/part1/step0/main
 
-test/step1/data.txt
-test/step1/go.sum
-test/step1/main
+test/part1/step1/data.txt
+test/part1/step1/go.sum
+test/part1/step1/main
 
-test/step2/data.txt
-test/step2/go.sum
-test/step2/main
+test/part1/step2/data.txt
+test/part1/step2/go.sum
+test/part1/step2/main
+
+test/part1/step3/data.txt
+test/part1/step3/go.sum
+test/part1/step3/main
 
 tool/go.sum

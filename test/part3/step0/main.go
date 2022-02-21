@@ -22,7 +22,7 @@ var (
 	redisDbIndex         = 0                                          // Redis数据库索引
 	dbDriver             = "mysql"                                    // 数据库驱动
 	dbUsername           = "root"                                     // 超级管理员账号
-	dbPassword           = "root"                                     // 超级管理员密码
+	dbPassword           = "aA!12345"                                 // 超级管理员密码
 	dbProtocol           = "tcp"                                      // 协议
 	dbHost               = "localhost"                                // 数据库地址
 	dbPort               = 3306                                       // 数据库端口
@@ -30,12 +30,12 @@ var (
 	dbBaseName           = "db"                                       // 试验数据库
 	tbBaseName           = "tb"                                       // 试验数据表
 	dbBusinessUsername   = "business"                                 // 业务账号（实际业务中操作数据库使用的普通账号）
-	dbBusinessPassword   = "business"                                 // 业务密码
+	dbBusinessPassword   = "aA!12345"                                 // 业务密码
 	dbBusinessHost       = "%"                                        // 业务主机
 	dbBusinessPrivileges = "INSERT,DELETE,UPDATE,SELECT"              // 业务权限（增删改查）
 	dbBusinessScope      = dbBaseName + ".*"                          // 业务账号权限范围
 	dbTransferUsername   = "transfer"                                 // 迁移账号（实际业务中操作数据库使用的普通账号）
-	dbTransferPassword   = "transfer"                                 // 迁移密码
+	dbTransferPassword   = "aA!12345"                                 // 迁移密码
 	dbTransferHost       = "%"                                        // 迁移主机
 	dbTransferPrivileges = "INSERT,DELETE,UPDATE,SELECT,CREATE,SUPER" // 迁移权限
 	dbTransferScope      = "*.*"                                      // 迁移账号权限范围
@@ -43,30 +43,30 @@ var (
 
 func main() {
 
-	// 创建模拟数据集
-	createData()
-	// 设置分布式唯一ID初始值
-	setRid()
-	// 创建数据库
-	createDatabase()
-
-	log.Info("正在建立数据库链接：", dbBaseName)
-	db := dao.Connect(dbDriver, fmt.Sprintf("%s:%s@%s(%s:%d)/%s", dbUsername, dbPassword, dbProtocol, dbHost, dbPort, dbBaseName))
-	log.Info("成功")
-
-	// 创建数据表
-	createTable(db)
-	// 导入模拟数据集
-	loadData(db)
-	// 创建业务账号
-	createUser(db, dbBusinessUsername, dbBusinessHost, dbBusinessPassword, dbBusinessPrivileges, dbBusinessScope)
-	// 创建迁移账号
-	createUser(db, dbTransferUsername, dbTransferHost, dbTransferPassword, dbTransferPrivileges, dbTransferScope)
-
-	log.Info("正在关闭数据库链接：", dbBaseName)
-	dao.Close(db)
-	log.Info("成功")
-	log.Info("环境准备完成")
+	//// 创建模拟数据集
+	//createData()
+	//// 设置分布式唯一ID初始值
+	//setRid()
+	//// 创建数据库
+	//createDatabase()
+	//
+	//log.Info("正在建立数据库链接：", dbBaseName)
+	//db := dao.Connect(dbDriver, fmt.Sprintf("%s:%s@%s(%s:%d)/%s", dbUsername, dbPassword, dbProtocol, dbHost, dbPort, dbBaseName))
+	//log.Info("成功")
+	//
+	//// 创建数据表
+	//createTable(db)
+	//// 导入模拟数据集
+	//loadData(db)
+	//// 创建业务账号
+	//createUser(db, dbBusinessUsername, dbBusinessHost, dbBusinessPassword, dbBusinessPrivileges, dbBusinessScope)
+	//// 创建迁移账号
+	//createUser(db, dbTransferUsername, dbTransferHost, dbTransferPassword, dbTransferPrivileges, dbTransferScope)
+	//
+	//log.Info("正在关闭数据库链接：", dbBaseName)
+	//dao.Close(db)
+	//log.Info("成功")
+	//log.Info("环境准备完成")
 
 }
 

@@ -9,4 +9,4 @@ require (
 
 require tool v0.0.0
 
-replace tool => ./../../tool
+replace tool => ./../../../tool
